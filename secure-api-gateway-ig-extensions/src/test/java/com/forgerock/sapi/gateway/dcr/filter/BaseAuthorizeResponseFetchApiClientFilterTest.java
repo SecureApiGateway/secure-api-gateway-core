@@ -20,12 +20,14 @@ import static com.forgerock.sapi.gateway.dcr.service.idm.IdmApiClientDecoderTest
 import static com.forgerock.sapi.gateway.dcr.service.idm.IdmApiClientDecoderTest.verifyIdmClientDataMatchesApiClientObject;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.forgerock.json.JsonValue.json;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.forgerock.http.Client;
 import org.forgerock.http.Filter;
@@ -42,22 +44,23 @@ import org.forgerock.util.promise.Promise;
 import org.junit.jupiter.api.Test;
 
 import com.forgerock.sapi.gateway.dcr.models.ApiClient;
-import com.forgerock.sapi.gateway.dcr.service.ApiClientService;
 import com.forgerock.sapi.gateway.dcr.service.idm.IdmApiClientServiceTest.MockGetApiClientIdmHandler;
 import com.forgerock.sapi.gateway.util.TestHandlers.FixedResponseHandler;
+import com.forgerock.sapi.gateway.util.TestHandlers.TestSuccessResponseHandler;
 
-public abstract class BaseResponsePathFetchApiClientFilterTest {
+public abstract class BaseAuthorizeResponseFetchApiClientFilterTest {
     static final String idmBaseUri = "http://localhost/openidm/managed";
     static final String clientId = "9999";
     private static AttributesContext createContext() {
         return new AttributesContext(new RootContext("root"));
     }
 
-    protected Filter createFilter(Handler idmResponseHandler) {
-        return createFilter(createApiClientService(new Client(idmResponseHandler), idmBaseUri));
+    protected AuthorizeResponseFetchApiClientFilter createFilter(Handler idmResponseHandler) {
+        return new AuthorizeResponseFetchApiClientFilter(createApiClientService(new Client(idmResponseHandler), idmBaseUri),
+                                                         createClientIdRetriever());
     }
 
-    protected abstract Filter createFilter(ApiClientService apiClientService);
+    protected abstract Function<Request, Promise<String, NeverThrowsException>> createClientIdRetriever();
 
     @Test
     void fetchApiClientForSuccessResponse() throws Exception {
@@ -66,8 +69,12 @@ public abstract class BaseResponsePathFetchApiClientFilterTest {
         callFilterValidateSuccessBehaviour(idmClientData, createFilter(idmResponseHandler));
     }
 
-    protected void callFilterValidateSuccessBehaviour(JsonValue idmClientData, Filter filter) throws Exception {
-        final Consumer<AttributesContext> successBehaviourValidator = ctxt -> {
+    protected void callFilterValidateSuccessBehaviour(JsonValue idmClientData, AuthorizeResponseFetchApiClientFilter filter) throws Exception {
+
+        final BiConsumer<Response, AttributesContext> successBehaviourValidator = (response, ctxt) -> {
+            // Verify we hit the end of the chain and got the NO_CONTENT response
+            assertEquals(Status.NO_CONTENT, response.getStatus());
+
             // Verify that the context was updated with the apiClient data
             final ApiClient apiClient = FetchApiClientFilter.getApiClientFromContext(ctxt);
             assertNotNull(apiClient, "apiClient was not found in context");
@@ -76,51 +83,46 @@ public abstract class BaseResponsePathFetchApiClientFilterTest {
         callFilter(filter, successBehaviourValidator);
     }
 
-    private void callFilter(Filter filter, Consumer<AttributesContext> contextValidator) throws Exception {
-        final AttributesContext attributesContext = BaseResponsePathFetchApiClientFilterTest.createContext();
+    private void callFilter(AuthorizeResponseFetchApiClientFilter filter, BiConsumer<Response, AttributesContext> responseAndContextValidator) throws Exception {
+        final AttributesContext attributesContext = BaseAuthorizeResponseFetchApiClientFilterTest.createContext();
 
-        final Response upstreamResponse = createValidUpstreamResponse();
-        final FixedResponseHandler upstreamHandler = new FixedResponseHandler(upstreamResponse);
+        // This is the next handler called after the AuthoriseResponseFetchApiClientFilter
+        final Handler endOfFilterChainHandler = Handlers.NO_CONTENT;
         final Request request = createRequest();
-        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(attributesContext, request, upstreamHandler);
+        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(attributesContext, request, endOfFilterChainHandler);
 
         final Response response = responsePromise.getOrThrow(1L, TimeUnit.SECONDS);
-        // Validate the filter returns the upstream response unaltered on success paths
-        assertThat(response).isEqualTo(upstreamResponse);
 
-        // Validate the context
-        contextValidator.accept(attributesContext);
+        // Do the validation
+        responseAndContextValidator.accept(response, attributesContext);
     }
 
     protected abstract Request createRequest();
-
-    protected abstract Response createValidUpstreamResponse();
 
     @Test
     void doesNotFetchApiClientForErrorResponses() throws InterruptedException, TimeoutException {
         final JsonValue idmClientData = createIdmApiClientWithJwks(clientId);
         final MockGetApiClientIdmHandler idmResponseHandler = new MockGetApiClientIdmHandler(idmBaseUri, clientId, idmClientData);
-        final Filter filter = createFilter(idmResponseHandler);
-        final AttributesContext context = BaseResponsePathFetchApiClientFilterTest.createContext();
+        final AuthorizeResponseFetchApiClientFilter filter = createFilter(idmResponseHandler);
+        final AttributesContext context = BaseAuthorizeResponseFetchApiClientFilterTest.createContext();
 
-        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, createRequest(),
-                new FixedResponseHandler(new Response(Status.BAD_GATEWAY)));
-
+        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, createRequest(), new FixedResponseHandler(new Response(Status.BAD_GATEWAY)));
         final Response response = responsePromise.getOrThrow(1, TimeUnit.SECONDS);
 
         assertThat(response.getStatus()).isEqualTo(Status.BAD_GATEWAY);
         verifyApiClientNotInContext(context);
     }
 
-    void returnsErrorResponseWhenClientIdParamNotFound(Request request, Response upstreamResponse) throws Exception {
+    @Test
+    void returnsErrorResponseWhenClientIdParamNotFound() throws Exception {
         final JsonValue idmClientData = createIdmApiClientWithJwks(clientId);
         final MockGetApiClientIdmHandler idmResponseHandler = new MockGetApiClientIdmHandler(idmBaseUri, clientId, idmClientData);
-        final Filter filter = createFilter(idmResponseHandler);
-        final AttributesContext context = BaseResponsePathFetchApiClientFilterTest.createContext();
+        final AuthorizeResponseFetchApiClientFilter filter = createFilter(idmResponseHandler);
+        final AttributesContext context = BaseAuthorizeResponseFetchApiClientFilterTest.createContext();
 
+        final Request request = new Request();
         request.setUri("/authorize");
-        final FixedResponseHandler upstreamHandler = new FixedResponseHandler(upstreamResponse);
-        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, request, upstreamHandler);
+        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, request, new TestSuccessResponseHandler());
         final Response response = responsePromise.getOrThrow(1, TimeUnit.SECONDS);
 
         assertThat(response.getStatus()).isEqualTo(Status.BAD_REQUEST);
@@ -132,11 +134,10 @@ public abstract class BaseResponsePathFetchApiClientFilterTest {
 
     @Test
     void returnsErrorResponseWhenApiClientServiceReturnsException() throws Exception {
-        final Filter filter = createFilter(Handlers.INTERNAL_SERVER_ERROR);
-        final AttributesContext context = BaseResponsePathFetchApiClientFilterTest.createContext();
+        final AuthorizeResponseFetchApiClientFilter filter = createFilter(Handlers.INTERNAL_SERVER_ERROR);
+        final AttributesContext context = BaseAuthorizeResponseFetchApiClientFilterTest.createContext();
 
-        final FixedResponseHandler upstreamHandler = new FixedResponseHandler(createValidUpstreamResponse());
-        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, createRequest(), upstreamHandler);
+        final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, createRequest(), new TestSuccessResponseHandler());
         final Response response = responsePromise.getOrThrow(1, TimeUnit.SECONDS);
 
         assertThat(response.getStatus()).isEqualTo(Status.INTERNAL_SERVER_ERROR);
@@ -153,9 +154,9 @@ public abstract class BaseResponsePathFetchApiClientFilterTest {
         final MockGetApiClientIdmHandler idmResponseHandler = new MockGetApiClientIdmHandler(idmBaseUri, clientId, deletedApiClient);
         final Filter filter = createFilter(idmResponseHandler);
 
-        final AttributesContext context = BaseResponsePathFetchApiClientFilterTest.createContext();
+        final AttributesContext context = BaseAuthorizeResponseFetchApiClientFilterTest.createContext();
 
-        final FixedResponseHandler upstreamHandler = new FixedResponseHandler(createValidUpstreamResponse());
+        final FixedResponseHandler upstreamHandler = new FixedResponseHandler(new Response(Status.OK));
         final Promise<Response, NeverThrowsException> responsePromise = filter.filter(context, createRequest(), upstreamHandler);
         final Response response = responsePromise.getOrThrow(1, TimeUnit.SECONDS);
 

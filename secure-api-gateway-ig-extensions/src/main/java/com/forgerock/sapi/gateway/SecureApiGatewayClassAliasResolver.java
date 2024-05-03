@@ -31,7 +31,6 @@ import com.forgerock.sapi.gateway.dcr.filter.ManageApiClientFilter;
 import com.forgerock.sapi.gateway.dcr.filter.ManageApiClientFilter.PathParamClientIdRequestParameterLocator;
 import com.forgerock.sapi.gateway.dcr.filter.ManageApiClientFilter.QueryParamClientIdRequestParameterLocator;
 import com.forgerock.sapi.gateway.dcr.filter.ParResponseFetchApiClientFilterHeaplet;
-import com.forgerock.sapi.gateway.dcr.filter.TokenEndpointResponseFetchApiClientFilter;
 import com.forgerock.sapi.gateway.dcr.request.RegistrationRequestBuilderFilter;
 import com.forgerock.sapi.gateway.dcr.service.idm.IdmApiClientOrganisationService;
 import com.forgerock.sapi.gateway.dcr.service.idm.IdmApiClientService;
@@ -51,7 +50,7 @@ import com.forgerock.sapi.gateway.mtls.AddCertificateToAttributesContextFilter;
 import com.forgerock.sapi.gateway.mtls.DefaultTransportCertValidator;
 import com.forgerock.sapi.gateway.mtls.ContextCertificateRetriever;
 import com.forgerock.sapi.gateway.mtls.HeaderCertificateRetriever;
-import com.forgerock.sapi.gateway.mtls.ResponsePathTransportCertValidationFilter;
+import com.forgerock.sapi.gateway.mtls.TokenEndpointTransportCertValidationFilter;
 import com.forgerock.sapi.gateway.mtls.TransportCertValidationFilter;
 import com.forgerock.sapi.gateway.trusteddirectories.FetchTrustedDirectoryFilter;
 import com.forgerock.sapi.gateway.trusteddirectories.TrustedDirectoryService;
@@ -73,7 +72,7 @@ public class SecureApiGatewayClassAliasResolver implements ClassAliasResolver {
         ALIASES.put("RegistrationRequestJwtSignatureValidationFilter", RegistrationRequestJwtSignatureValidationFilter.class);
         ALIASES.put("RegistrationRequestBuilderFilter", RegistrationRequestBuilderFilter.class);
         ALIASES.put("ConsentRequestAccessAuthorisationFilter", ConsentRequestAccessAuthorisationFilter.class);
-        ALIASES.put("ResponsePathTransportCertValidationFilter", ResponsePathTransportCertValidationFilter.class);
+        ALIASES.put("TokenEndpointTransportCertValidationFilter", TokenEndpointTransportCertValidationFilter.class);
         ALIASES.put("SapiLogAttachedExceptionFilter", SapiLogAttachedExceptionFilterHeaplet.class);
         ALIASES.put("CompactSerializationJwsSigner", CompactSerializationJwsSigner.class);
         ALIASES.put("AddCertificateToAttributesContextFilter", AddCertificateToAttributesContextFilter.class);
@@ -94,7 +93,6 @@ public class SecureApiGatewayClassAliasResolver implements ClassAliasResolver {
         ALIASES.put("ManageApiClientFilter", ManageApiClientFilter.class);
         ALIASES.put("PathParamClientIdRequestParameterLocator", PathParamClientIdRequestParameterLocator.class);
         ALIASES.put("QueryParamClientIdRequestParameterLocator", QueryParamClientIdRequestParameterLocator.class);
-        ALIASES.put("TokenEndpointResponseFetchApiClientFilter", TokenEndpointResponseFetchApiClientFilter.class);
     }
 
     /**

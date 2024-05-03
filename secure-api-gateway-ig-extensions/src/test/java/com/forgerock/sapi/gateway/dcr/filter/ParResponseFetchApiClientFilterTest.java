@@ -15,43 +15,28 @@
  */
 package com.forgerock.sapi.gateway.dcr.filter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.forgerock.json.JsonValue.field;
-import static org.forgerock.json.JsonValue.json;
-import static org.forgerock.json.JsonValue.object;
+import static org.assertj.core.api.Assertions.*;
 
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
+import org.assertj.core.api.Assertions;
 import org.forgerock.http.protocol.Form;
 import org.forgerock.http.protocol.Request;
-import org.forgerock.http.protocol.Response;
-import org.forgerock.http.protocol.Status;
-import org.forgerock.json.JsonValue;
-import org.forgerock.openig.heap.HeapException;
-import org.forgerock.openig.heap.HeapImpl;
-import org.forgerock.openig.heap.Name;
 import org.forgerock.util.promise.NeverThrowsException;
 import org.forgerock.util.promise.Promise;
 import org.junit.jupiter.api.Test;
 
-import com.forgerock.sapi.gateway.dcr.service.ApiClientService;
 import com.forgerock.sapi.gateway.util.CryptoUtils;
 import com.nimbusds.jose.JWSAlgorithm;
 
-public class ParResponseFetchApiClientFilterTest extends BaseResponsePathFetchApiClientFilterTest {
+public class ParResponseFetchApiClientFilterTest extends BaseAuthorizeResponseFetchApiClientFilterTest {
 
     @Override
-    protected ResponsePathFetchApiClientFilter createFilter(ApiClientService apiClientService) {
-        final HeapImpl heap = new HeapImpl(Name.of("heap"));
-        heap.put("apiClientService", apiClientService);
-        final JsonValue config = json(object(field("apiClientService", "apiClientService")));
-        try {
-            return (ResponsePathFetchApiClientFilter) new ParResponseFetchApiClientFilterHeaplet().create(Name.of("test"), config, heap);
-        } catch (HeapException e) {
-            throw new RuntimeException(e);
-        }
+    protected Function<Request, Promise<String, NeverThrowsException>> createClientIdRetriever() {
+        return AuthorizeResponseFetchApiClientFilter.formRequestJwtClientIdRetriever();
     }
 
     @Override
@@ -69,22 +54,12 @@ public class ParResponseFetchApiClientFilterTest extends BaseResponsePathFetchAp
         return request;
     }
 
-    @Override
-    protected Response createValidUpstreamResponse() {
-        return new Response(Status.OK);
-    }
-
-    @Test
-    void returnsErrorResponseWhenClientIdParamNotFound() throws Exception {
-        returnsErrorResponseWhenClientIdParamNotFound(new Request().setUri("/authorize"), createValidUpstreamResponse());
-    }
-
     @Test
     public void failsToRetreiveClientIdWhenRequestJwtIsMissing() throws Exception {
         Request request = new Request();
         request.setEntity(new Form());
         final Promise<String, NeverThrowsException> clientIdPromise =
-                ParResponseFetchApiClientFilterHeaplet.formRequestJwtClientIdRetriever().apply(request);
+                AuthorizeResponseFetchApiClientFilter.formRequestJwtClientIdRetriever().apply(request);
 
         final String clientId = clientIdPromise.getOrThrow(1, TimeUnit.MILLISECONDS);
         assertThat(clientId).isNull();
@@ -97,7 +72,7 @@ public class ParResponseFetchApiClientFilterTest extends BaseResponsePathFetchAp
         form.putSingle("request", "this is not a jwt");
         request.setEntity(form);
         final Promise<String, NeverThrowsException> clientIdPromise =
-                ParResponseFetchApiClientFilterHeaplet.formRequestJwtClientIdRetriever().apply(request);
+                AuthorizeResponseFetchApiClientFilter.formRequestJwtClientIdRetriever().apply(request);
 
         final String clientId = clientIdPromise.getOrThrow(1, TimeUnit.MILLISECONDS);
         assertThat(clientId).isNull();
@@ -110,7 +85,7 @@ public class ParResponseFetchApiClientFilterTest extends BaseResponsePathFetchAp
         form.putSingle("request", CryptoUtils.createEncodedJwtString(Map.of("claim1", "value1"), JWSAlgorithm.PS256));
         request.setEntity(form);
         final Promise<String, NeverThrowsException> clientIdPromise =
-                ParResponseFetchApiClientFilterHeaplet.formRequestJwtClientIdRetriever().apply(request);
+                AuthorizeResponseFetchApiClientFilter.formRequestJwtClientIdRetriever().apply(request);
 
         final String clientId = clientIdPromise.getOrThrow(1, TimeUnit.MILLISECONDS);
         assertThat(clientId).isNull();
