@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
+      - ob-v*
     paths-ignore:
       - '**/README.md'
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 jobs:
   run_merge-template:
     name: Merge - Build and Deploy
@@ -14,3 +17,4 @@ jobs:
     with:
       componentName: secure-api-gateway-core
       dockerTag: $(echo ${{ github.sha }} | cut -c1-7)
+      branch: ${{ env.BRANCH_NAME }}
