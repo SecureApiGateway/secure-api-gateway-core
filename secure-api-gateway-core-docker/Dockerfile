@@ -14,7 +14,10 @@
 # limitations under the License.
 #
 
-ARG base_image=gcr.io/forgerock-io/ig:2024.9.0
+# TODO: original - do not merge:
+#  ARG base_image=gcr.io/forgerock-io/ig:2024.9.0
+#  ARG base_image=gcr.io/forgerock-io/ig:2024.11.0-PR-6370-latest-build
+ARG base_image=gcr.io/forgerock-io/ig/pull-requests:2024.11.0-PR-6375-latest-build
 FROM ${base_image}
 # Switching back to forgerock user, app will run as this
 USER forgerock
