@@ -18,7 +18,8 @@
 #  ARG base_image=gcr.io/forgerock-io/ig:2024.11.0
 #  ARG base_image=gcr.io/forgerock-io/ig/docker-build:2024.11.0-latest-postcommit
 #  ARG base_image=gcr.io/forgerock-io/ig:2024.11.0-PR-6370-latest-build
-ARG base_image=gcr.io/forgerock-io/ig/pull-requests:2024.11.0-PR-6375-latest-build
+#  ARG base_image=gcr.io/forgerock-io/ig/pull-requests:2024.11.0-PR-6375-latest-build
+ARG base_image=gcr.io/forgerock-io/ig/pull-requests:2025.3.0-PR-6370-13-c1c6f2ff72c0fb2b80d6dcc6466a7726d918eacc-fapi
 FROM ${base_image}
 # Switching back to forgerock user, app will run as this
 USER forgerock

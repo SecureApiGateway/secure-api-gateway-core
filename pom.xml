@@ -62,11 +62,11 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
-            <dependency>
+            <!--dependency>  TODO[OPENIG-8856]: to remove
                 <groupId>org.forgerock.openig</groupId>
                 <artifactId>openig-fapi</artifactId>
                 <version>${openig.version}</version>
-            </dependency>
+            </dependency-->
             <!-- Third party -->
             <dependency>
                 <groupId>com.nimbusds</groupId>
