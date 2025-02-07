@@ -298,8 +298,7 @@
       "type": "TrustedDirectoryService",
       "config": {
         "trustedDirectories": [
-          "OpenBankingTestDirectory",
-          "SecureAPIGatewayTestDirectory"
+          "OpenBankingTestDirectory"
         ]
       }
     },
