@@ -1,7 +1,4 @@
-import org.forgerock.json.jose.jwk.JWKSet
 import org.forgerock.json.jose.jwk.JWK
-import com.forgerock.sapi.gateway.common.jwt.ClaimsSetFacade
-import com.forgerock.sapi.gateway.common.jwt.JwtException
 import org.forgerock.openig.fapi.dcr.RegistrationRequest
 import org.forgerock.openig.fapi.dcr.SoftwareStatement
 import com.forgerock.securebanking.uk.gateway.jwks.*
@@ -11,7 +8,9 @@ import org.forgerock.json.jose.exceptions.FailedToLoadJWKException
 
 import java.security.SignatureException
 
+import static org.forgerock.util.promise.Promises.newExceptionPromise
 import static org.forgerock.util.promise.Promises.newResultPromise
+import static org.forgerock.http.protocol.Response.newResponsePromise;
 
 /*
  * Script to verify the registration request, and prepare AM OIDC dynamic client reg
@@ -65,12 +64,6 @@ switch (method.toUpperCase()) {
 
         RegistrationRequest registrationRequest = attributes.registrationRequest
 
-        def SCOPE_ACCOUNTS = "accounts"
-        def SCOPE_PAYMENTS = "payments"
-        def ROLE_PAYMENT_INITIATION = "0.4.0.19495.1.2"
-        def ROLE_ACCOUNT_INFORMATION = "0.4.0.19495.1.3"
-        def ROLE_CARD_BASED_PAYMENT_INSTRUMENTS = "0.4.0.19495.1.4"
-
         // Check we have everything we need from the client certificate
         if (!attributes.clientCertificate) {
             return errorResponseFactory.invalidClientMetadataErrorResponse("No client certificate for registration")
@@ -109,15 +102,13 @@ switch (method.toUpperCase()) {
         }
         logger.debug("{}token_endpoint_auth_method is {}", SCRIPT_NAME, tokenEndpointAuthMethod)
 
-
-        // AM should reject this case??
+        // AM should reject this case?
         if (tokenEndpointAuthMethod.equals("tls_client_auth") && registrationRequest.getMetadata("tls_client_auth_subject_dn").isNull()) {
             return errorResponseFactory.invalidClientMetadataErrorResponse("tls_client_auth_subject_dn must be provided to use tls_client_auth")
         }
 
         SoftwareStatement softwareStatement = registrationRequest.getSoftwareStatement()
         logger.debug(SCRIPT_NAME + "Got ssa [" + softwareStatement.getSoftwareStatementAssertion().build() + "]")
-
 
         def apiClientOrgId = softwareStatement.getOrganisationId()
         def apiClientOrgName = softwareStatement.getOrganisationName() !=null ? softwareStatement.getOrganisationName() : apiClientOrgId
@@ -147,7 +138,6 @@ switch (method.toUpperCase()) {
 
         registrationRequest.setMetadata("tls_client_certificate_bound_access_tokens", true)
 
-
         // Put is editing an existing registration, so needs the client_id param in the uri
         if (request.method == "PUT") {
             rewriteUriToAccessExistingAmRegistration()
@@ -158,7 +148,7 @@ switch (method.toUpperCase()) {
             return jwkSetService.getJwkSet(uri)
         }, apiClientJwkSet -> {
             if (!allowIgIssuedTestCerts) {
-                return Promises.newExceptionPromise(new FailedToLoadJWKException("software_statement must contain software_jwks_endpoint"))
+                return newExceptionPromise(new FailedToLoadJWKException("software_statement must contain software_jwks_endpoint"))
             }
 
             // We need to set the jwks claim in the registration request because the software statement might not
@@ -168,8 +158,6 @@ switch (method.toUpperCase()) {
             registrationRequest.setMetadata("jwks", apiClientJwkSet.toJsonValue())
             return newResultPromise(apiClientJwkSet)
 
-        }).thenCatchAsync(e -> {
-            return newResultPromise(errorResponseFactory.invalidClientMetadataErrorResponse(e.message))
         }).thenAsync(apiClientJwkSet -> {
             logger.debug(SCRIPT_NAME + "Checking cert against ssa software_jwks: " + apiClientJwkSet)
             if (!tlsClientCertExistsInJwkSet(apiClientJwkSet)) {
@@ -187,7 +175,7 @@ switch (method.toUpperCase()) {
             return next.handle(context, request)
                        .thenAsync(response -> addSoftwareStatementToResponse(response, softwareStatement.getSoftwareStatementAssertion()))
 
-        })
+        }, e -> newResponsePromise(errorResponseFactory.invalidClientMetadataErrorResponse(e.message)))
 
     case "DELETE":
         rewriteUriToAccessExistingAmRegistration()
@@ -220,16 +208,17 @@ private void validateRegistrationRedirectUris(RegistrationRequest registrationRe
 
     for(URI regRequestRedirectUri : regRedirectUris){
         if(!"https".equals(regRequestRedirectUri.getScheme())){
-            throw new IllegalStateException("invalid registration request redirect_uris value: " + regRedirect + " must use https")
+            throw new IllegalStateException("invalid registration request redirect_uris value: " + regRequestRedirectUri + " must use https")
         }
 
         if("localhost".equals(regRequestRedirectUri.getHost())){
-            throw new IllegalStateException("invalid registration request redirect_uris value: " + regRedirect + " must not point to localhost")
+            throw new IllegalStateException("invalid registration request redirect_uris value: " + regRequestRedirectUri + " must not point to localhost")
         }
 
         if(!ssaRedirectUris.contains(regRequestRedirectUri)){
             throw new IllegalStateException("invalid registration request redirect_uris value, must match or be a subset of the software_redirect_uris")
         }
+        return
     }
 }
 
@@ -316,8 +305,8 @@ private void rewriteUriToAccessExistingAmRegistration() {
 private Promise addSoftwareStatementToResponse(response, softwareStatementAssertion) {
     if (response.status.isSuccessful()) {
         return response.getEntity().getJsonAsync().then(json -> {
-            if (!json["software_statement"]) {
-                json["software_statement"] = softwareStatementAssertion.build()
+            if (!json.isDefined("software_statement")) {
+                json.put("software_statement", softwareStatementAssertion.build())
             }
             response.entity.setJson(json)
             return response
@@ -343,7 +332,7 @@ private boolean tlsClientCertExistsInJwkSet(jwkSet) {
     return false
 }
 
-private boolean validateRegistrationJwtSignature(jwt, jwkSet) {
+private boolean validateRegistrationJwtSignature(jwt, jwkSet) {  // TODO[OPENIG-8576]: Unused? Find out why?
     try {
         jwtSignatureValidator.validateSignature(jwt, jwkSet)
         return true
