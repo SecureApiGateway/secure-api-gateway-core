@@ -53,7 +53,6 @@ import org.forgerock.json.jose.jwk.RsaJWK;
 import org.forgerock.json.jose.jws.SignedJwt;
 import org.forgerock.util.Pair;
 
-import com.forgerock.sapi.gateway.jwks.RestJwkSetServiceTest;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -237,8 +236,8 @@ public class CryptoUtils {
     }
 
     public static JWKSet createJwkSet(){
-        return new JWKSet(List.of(RestJwkSetServiceTest.createJWK(UUID.randomUUID().toString()),
-                RestJwkSetServiceTest.createJWK(UUID.randomUUID().toString())));
+        return new JWKSet(List.of(createJWK(UUID.randomUUID().toString()),
+                                  createJWK(UUID.randomUUID().toString())));
     }
 
     public static SignedJwt createSignedJwt(Map<String, Object> claims, JWSAlgorithm signingAlgo) {

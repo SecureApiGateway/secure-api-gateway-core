@@ -286,11 +286,11 @@
     },
     {
       "name": "JwkSetService",
-      "type": "CaffeineCachingJwkSetService",
+      "type": "CachingJwkSetService",
       "config": {
-        "handler": "OBClientHandler",
-        "maxCacheEntries": 500,
-        "expireAfterWriteDuration": "24 hours"
+        "endpointHandler": "OBClientHandler",
+        "cacheMaxSize": 500,
+        "cacheTimeout": "24 hours"
       }
     },
     {
