@@ -58,7 +58,7 @@
             <dependency>
                 <groupId>org.forgerock.openig</groupId>
                 <artifactId>openig-bom</artifactId>
-                <version>${openig.version}</version>
+                <version>${openig.version} </version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
