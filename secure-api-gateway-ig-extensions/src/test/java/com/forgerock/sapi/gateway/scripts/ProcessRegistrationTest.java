@@ -87,7 +87,7 @@ import com.nimbusds.jose.jwk.KeyUse;
 class ProcessRegistrationTest extends AbstractScriptTest {
     // Untested:
     // - DELETE methods
-    // - subject, allowIgIssuedTestCerts
+    // - subject
     // - generally more coverage required
 
     // ErrorResponseFactory error codes
