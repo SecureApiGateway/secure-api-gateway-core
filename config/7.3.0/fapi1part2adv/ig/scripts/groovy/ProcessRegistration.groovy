@@ -1,3 +1,8 @@
+import static org.forgerock.http.protocol.Response.newResponsePromise
+import static org.forgerock.secrets.Purpose.purpose
+import static org.forgerock.util.promise.Promises.newExceptionPromise
+import static org.forgerock.util.promise.Promises.newResultPromise
+
 import java.security.cert.CertificateEncodingException
 import java.security.cert.CertificateExpiredException
 import java.security.cert.CertificateNotYetValidException
@@ -12,6 +17,8 @@ import static org.forgerock.json.JsonValue.json;
 import org.forgerock.json.jose.exceptions.FailedToLoadJWKException
 import org.forgerock.json.jose.jwk.JWK
 import org.forgerock.json.jose.jwk.JWKSet
+import org.forgerock.openig.fapi.dcr.RegistrationRequest
+import org.forgerock.openig.fapi.dcr.SoftwareStatement
 import org.forgerock.secrets.NoSuchSecretException
 import org.forgerock.secrets.Purpose
 import org.forgerock.secrets.SecretConstraint
@@ -19,16 +26,10 @@ import org.forgerock.secrets.keys.CertificateVerificationKey
 import org.forgerock.secrets.keys.CryptoKey
 import org.forgerock.util.promise.NeverThrowsException
 
-import org.forgerock.openig.fapi.dcr.RegistrationRequest
-import org.forgerock.openig.fapi.dcr.SoftwareStatement
-
 import com.forgerock.securebanking.uk.gateway.jwks.*
-import com.securebanking.gateway.dcr.ErrorResponseFactory
+import com.nimbusds.jose.jwk.RSAKey
 
-import static org.forgerock.util.promise.Promises.newExceptionPromise
-import static org.forgerock.util.promise.Promises.newResultPromise
-import static org.forgerock.http.protocol.Response.newResponsePromise
-import static org.forgerock.secrets.Purpose.purpose
+import com.securebanking.gateway.dcr.ErrorResponseFactory
 
 /*
  * Script to verify the registration request, and prepare AM OIDC dynamic client reg
