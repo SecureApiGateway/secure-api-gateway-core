@@ -332,13 +332,4 @@ private boolean tlsClientCertExistsInJwkSet(jwkSet) {
     return false
 }
 
-private boolean validateRegistrationJwtSignature(jwt, jwkSet) {  // TODO[OPENIG-8576]: Unused? Find out why?
-    try {
-        jwtSignatureValidator.validateSignature(jwt, jwkSet)
-        return true
-    } catch (SignatureException se) {
-        logger.warn(SCRIPT_NAME + "jwt signature validation failed", se)
-        return false
-    }
-}
 
