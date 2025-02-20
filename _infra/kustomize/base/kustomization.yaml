@@ -3,7 +3,7 @@ generatorOptions:
 labels:
   - includeSelectors: true
     pairs:
-      app.kubernetes.io/name: forgerock
+      app.kubernetes.io/name: pingid
 images:
   - name: ig
     newName: europe-west4-docker.pkg.dev/sbat-gcr-develop/sapig-docker-artifact/securebanking/sapig-core

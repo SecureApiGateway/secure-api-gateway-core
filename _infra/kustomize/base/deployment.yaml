@@ -2,84 +2,105 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ig
+  labels:
+    app: fapi-pep-as
+    app.kubernetes.io/component: fapi-pep-as
+    app.kubernetes.io/instance: fapi-pep-as
+    app.kubernetes.io/part-of: pingid
+    tier: middle
+  name: fapi-pep-as
+  namespace: default
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: fapi-pep-as
+      app.kubernetes.io/component: fapi-pep-as
+      app.kubernetes.io/instance: fapi-pep-as
+      app.kubernetes.io/part-of: pingid
+      tier: middle
   template:
+    metadata:
+      labels:
+        app: fapi-pep-as
+        app.kubernetes.io/component: fapi-pep-as
+        app.kubernetes.io/instance: fapi-pep-as
+        app.kubernetes.io/part-of: pingid
+        tier: middle
     spec:
+      containers:
+        - env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: as-sapig-secrets
+            - configMapRef:
+                name: as-sapig-deployment-config
+          image: fapi-pep-as
+          imagePullPolicy: Always
+          livenessProbe:
+            httpGet:
+              path: /kube/liveness
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+          name: fapi-pep-as
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /kube/readiness
+              port: 8080
+            initialDelaySeconds: 5
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 200m
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /var/ig/secrets/truststore
+              name: new-truststore
+              readOnly: true
       initContainers:
-        # Copies certs from the ig-truststore-pem into the new-truststore volume
-        - name: truststore-init
-          command: [ "/home/forgerock/import-pem-certs.sh" ]
+        - command:
+            - /home/forgerock/import-pem-certs.sh
           env:
-            # Path of the new truststore to create
             - name: TRUSTSTORE_PATH
               value: /truststore/igtruststore
             - name: TRUSTSTORE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: core-secrets
                   key: IG_TRUSTSTORE_PASSWORD
-            # Path to the pem file containing the certs to copy into the new truststore
+                  name: core-secrets
             - name: IG_PEM_TRUSTSTORE
-              value: "/var/run/secrets/truststore/ig-truststore.pem"
-          image: ig
+              value: /var/run/secrets/truststore/ig-truststore.pem
+          image: fapi-pep-as
           imagePullPolicy: Always
+          name: truststore-init
           volumeMounts:
-            - name: new-truststore
-              mountPath: /truststore
-            - name: ig-truststore-pem
-              mountPath: /var/run/secrets/truststore
-      containers:
-      - name: ig
-        env:
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: MY_POD_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-        envFrom:
-        - secretRef:
-            name: core-secrets
-        - configMapRef:
-            name: core-deployment-config
-        image: ig
-        imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /kube/liveness
-            port: 8080
-          periodSeconds: 30
-          timeoutSeconds: 5
-        readinessProbe:
-            httpGet:
-              path: /kube/readiness
-              port: 8080
-            initialDelaySeconds: 5
-        ports:
-            - containerPort: 8080
-        resources:
-            requests:
-              cpu: 200m
-              memory: 512Mi
-            limits:
-              memory: 512Mi
-        volumeMounts:
-          - name: new-truststore
-            mountPath: /var/ig/secrets/truststore
-            readOnly: true
+            - mountPath: /truststore
+              name: new-truststore
+            - mountPath: /var/run/secrets/truststore
+              name: ig-truststore-pem
+      securityContext:
+        runAsGroup: 0
+        runAsUser: 11111
       tolerations:
-        - key: kubernetes.io/arch
+        - effect: NoSchedule
+          key: kubernetes.io/arch
           operator: Exists
-          effect: NoSchedule
       volumes:
-        # Empty volume where the igtruststore will be created by the initContainer, it can then be mounted into the ig container
-        - name: new-truststore
-          emptyDir: { }
+        - emptyDir: {}
+          name: new-truststore
         - name: ig-truststore-pem
           secret:
-            secretName: ig-truststore-pem
             optional: false
+            secretName: ig-truststore-pem
