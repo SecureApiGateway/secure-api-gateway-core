@@ -67,7 +67,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-buffers: 4 256k
     nginx.ingress.kubernetes.io/proxy-busy-buffers_size: 256k
     nginx.ingress.kubernetes.io/error-log-level: "debug"
-  name: sapig
+  name: as.sapig
 spec:
   ingressClassName: nginx
   rules:
