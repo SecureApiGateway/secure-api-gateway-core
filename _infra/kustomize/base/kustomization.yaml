@@ -10,7 +10,3 @@ resources:
   - ingress.yaml
   - secret.yaml
   - service.yaml
-secretGenerator:
-  - name: mtls-ca-certs
-    files:
-      - ca.crt
