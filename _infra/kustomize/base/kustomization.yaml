@@ -1,0 +1,20 @@
+generatorOptions:
+  disableNameSuffixHash: true
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: forgerock
+images:
+  - name: ig
+    newName: europe-west4-docker.pkg.dev/sbat-gcr-develop/sapig-docker-artifact/securebanking/sapig-core
+    newTag: latest
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - ingress.yaml
+  - secret.yaml
+  - service.yaml
+secretGenerator:
+  - name: mtls-ca-certs
+    files:
+      - ca.crt
