@@ -1,16 +1,15 @@
+import static org.forgerock.http.protocol.Response.newResponsePromise
+import static org.forgerock.util.promise.Promises.newExceptionPromise
+import static org.forgerock.util.promise.Promises.newResultPromise
+
+import org.forgerock.json.jose.exceptions.FailedToLoadJWKException
 import org.forgerock.json.jose.jwk.JWK
 import org.forgerock.openig.fapi.dcr.RegistrationRequest
 import org.forgerock.openig.fapi.dcr.SoftwareStatement
+
 import com.forgerock.securebanking.uk.gateway.jwks.*
 import com.nimbusds.jose.jwk.RSAKey
 import com.securebanking.gateway.dcr.ErrorResponseFactory
-import org.forgerock.json.jose.exceptions.FailedToLoadJWKException
-
-import java.security.SignatureException
-
-import static org.forgerock.util.promise.Promises.newExceptionPromise
-import static org.forgerock.util.promise.Promises.newResultPromise
-import static org.forgerock.http.protocol.Response.newResponsePromise;
 
 /*
  * Script to verify the registration request, and prepare AM OIDC dynamic client reg
