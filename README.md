@@ -23,10 +23,10 @@ A SAPI-G build exists for Open Banking UK, see repo: https://github.com/SecureAp
 This build takes the core and adds support for Open Banking UK API endpoints, protected with FAPI 1.0 Part 2 Advanced.
 
 ### Sub-modules
-## secure-api-gateway-core-docker
+## secure-api-gateway-fapi-pep-as-docker
 This module manages creating docker images for the gateway builds supported.
 
-See [README.md](secure-api-gateway-core-docker/README.md) for more details.
+See [README.md](secure-api-gateway-fapi-pep-as-docker/README.md) for more details.
 
 ## secure-api-gateway-ig-extensions module
 This module contains Java code which extends the functionality of the ForgeRock Identity Gateway (IG) product.

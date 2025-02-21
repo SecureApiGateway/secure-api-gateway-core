@@ -32,7 +32,7 @@ import org.forgerock.openig.script.GroovyScriptFactory;
 import org.mockito.Mockito;
 
 /**
- * Support testing and validation of Groovy scripts residing in {@code secure-api-gateway-core/config}.
+ * Support testing and validation of Groovy scripts residing in {@code secure-api-gateway-fapi-pep-as/config}.
  */
 public abstract class AbstractScriptTest {
 
