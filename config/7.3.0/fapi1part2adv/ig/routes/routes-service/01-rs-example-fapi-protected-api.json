@@ -45,7 +45,7 @@
                   "type": "StatelessAccessTokenResolver",
                   "config": {
                     "secretsProvider": "SecretsProvider-AmJWK",
-                    "issuer": "https://&{ig.fqdn}/am/oauth2/realms/root/realms/&{am.realm}",
+                    "issuer": "https://&{ig.as.fqdn}/am/oauth2/realms/root/realms/&{am.realm}",
                     "verificationSecretId": "any.value.in.regex.format"
                   }
                 }
