@@ -7,8 +7,8 @@ data:
   #--Fully Qualified Domain Names--
   BASE_FQDN: "dev.forgerock.financial"
   IDENTITY_PLATFORM_FQDN: "iam.dev.forgerock.financial"
-  IG_AS_FQDN: "as.sapig.dev.forgerock.financial"
-  IG_RS_FQDN: "rs.sapig.dev.forgerock.financial"
+  AS_FQDN: "as.sapig.dev.forgerock.financial"
+  RS_FQDN: "rs.sapig.dev.forgerock.financial"
   AS_MTLS_FQDN: "as-mtls.sapig.dev.forgerock.financial"
   RS_MTLS_FQDN: "rs-mtls.sapig.dev.forgerock.financial"
   # --Environment Settings for SAPIG & Cloud Platform--
@@ -23,9 +23,10 @@ data:
   CLOUD_TYPE: "CDK"
   #--Additional Config--
   AM_REALM: "alpha"
-  CERT_ISSUER: "null-issuer"
+  CERT_ISSUER: "null-issuer" #Needed?
   # Connection settings for the IG hosted data repo
-  GATEWAY_DATA_REPO_URI: "http://ig:80"
+  GATEWAY_DATA_REPO_URI: "http://ig:80" # Needed for RCS and RS
+  # Wherever to use additional TTD other than OB
   IG_TEST_DIRECTORY_ENABLED: "true"
+  # Where to store the IG Truststore
   IG_TRUSTSTORE_PATH: "/secrets/truststore/igtruststore"
-  USER_OBJECT: "user"
