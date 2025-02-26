@@ -9,8 +9,7 @@ data:
   IDENTITY_PLATFORM_FQDN: "iam.dev.forgerock.financial"
   AS_FQDN: "as.sapig.dev.forgerock.financial"
   RS_FQDN: "rs.sapig.dev.forgerock.financial"
-  AS_MTLS_FQDN: "as-mtls.sapig.dev.forgerock.financial"
-  RS_MTLS_FQDN: "rs-mtls.sapig.dev.forgerock.financial"
+  AS_MTLS_FQDN: "mtls.sapig.dev.forgerock.financial"
   # --Environment Settings for SAPIG & Cloud Platform--
   # ---SAPIG---
   # core: base sapig
