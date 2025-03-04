@@ -173,11 +173,12 @@ public class CryptoUtils {
         final KeyUse keyUse = new KeyUse(transportCertKeyUse);
         final List<JWK> keys = new ArrayList<>();
         // Add testTransportCert to the JWKS
-        keys.add(createJwkForCert(testTransportCert, keyUse));
+        JWK matchingJwk = createJwkForCert(testTransportCert, keyUse);
+        keys.add(matchingJwk);
 
         // Generate several others certs to add to the JWKS
         for (int i = 0 ; i < 5; i++) {
-            final KeyUse randomKeyUse = i % 2 == 0 ? keyUse : new KeyUse("keyUse" + i);
+            final KeyUse randomKeyUse = i % 2 == 0 ? keyUse : new KeyUse("sig");
             keys.add(createJwkForCert(generateX509Cert(generateRsaKeyPair(), "CN=blah" + i), randomKeyUse));
         }
         // Randomise the key order

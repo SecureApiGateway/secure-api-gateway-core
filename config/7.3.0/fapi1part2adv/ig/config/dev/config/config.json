@@ -302,7 +302,8 @@
       "config": {
         "endpointHandler": "OBClientHandler",
         "cacheMaxSize": 500,
-        "cacheTimeout": "24 hours"
+        "cacheTimeout": "24 hours",
+        "transportCertKeyUse": "tls"
       }
     },
     {
@@ -383,7 +384,7 @@
       "name": "TransportCertValidator",
       "type": "DefaultTransportCertValidator",
       "config": {
-        "validKeyUse": "tls"
+        "transportCertKeyUse": "tls"
       }
     },
     {

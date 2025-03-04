@@ -15,111 +15,172 @@
  */
 package com.forgerock.sapi.gateway.mtls;
 
+import static com.forgerock.sapi.gateway.mtls.DefaultTransportCertValidator.Heaplet.CONFIG_TRANSPORT_KEY_USE;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateExpiredX509Cert;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateRsaKeyPair;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateX509Cert;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.secrets.Purpose.purpose;
+import static org.forgerock.secrets.jwkset.JwkSetSecretStore.JwkPredicates.keyUse;
 
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.stream.Stream;
 
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.jose.jwk.JWKSet;
 import org.forgerock.openig.heap.HeapImpl;
 import org.forgerock.openig.heap.Name;
+import org.forgerock.secrets.jwkset.JwkSetSecretStore;
+import org.forgerock.secrets.keys.CertificateVerificationKey;
+import org.forgerock.util.Options;
 import org.forgerock.util.Pair;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.forgerock.sapi.gateway.mtls.DefaultTransportCertValidator.Heaplet;
 import com.forgerock.sapi.gateway.util.CryptoUtils;
 
 class DefaultTransportCertValidatorTest {
 
+    // TEST_TLS_CERT actual X509 certificate
     private static X509Certificate TEST_TLS_CERT;
+    // JWKSet containing TEST_TLS_CERT plus others.
     private static JWKSet TEST_JWKS;
-
-    public static final String TLS_KEY_USE = "tls";
+    // The transport key use that we use to define the purpose
+    private static final String TLS_KEY_USE = "tls";
+    // It's easier to use a real JwkSetSecretStore
+    private static JwkSetSecretStore jwkSetSecretStore;
 
     @BeforeAll
     public static void beforeAll() throws Exception {
-        final Pair<X509Certificate, JWKSet> transportCertPemAndJwkSet = CryptoUtils.generateTestTransportCertAndJwks(TLS_KEY_USE);
+        final Pair<X509Certificate, JWKSet> transportCertPemAndJwkSet =
+                CryptoUtils.generateTestTransportCertAndJwks(TLS_KEY_USE);
         TEST_TLS_CERT = transportCertPemAndJwkSet.getFirst();
         TEST_JWKS = transportCertPemAndJwkSet.getSecond();
     }
 
     @Test
-    void testValidCertAndUse() throws CertificateException {
-        new DefaultTransportCertValidator(TLS_KEY_USE).validate(TEST_TLS_CERT, TEST_JWKS);
+    void shouldFindValidCertWithTlsKeyUsePredicate() {
+        // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
+                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
+        // ... and - validator using purpose TLS
+        DefaultTransportCertValidator transportCertValidator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        // When/Then - cert found
+        assertThatNoException()
+                .isThrownBy(() -> transportCertValidator.validate(TEST_TLS_CERT, jwkSetSecretStore)
+                                                        .getOrThrowIfInterrupted());
+    }
+
+    private static Stream<DefaultTransportCertValidator> defaultTransportCertValidator() {
+        return Stream.of(
+                // 'transportCertKeyUse' config - validator configured to use TLS as expected transport cert purpose
+                new DefaultTransportCertValidator(),
+                // No 'transportCertKeyUse' config - validator configured to allow any transport cert purpose
+                new DefaultTransportCertValidator(TLS_KEY_USE)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("defaultTransportCertValidator")
+    void shouldFindValidCertWhenNoPurposeKeyUsePredicate(final DefaultTransportCertValidator validator) {
+        // Given - JwkSetSecretStore not constraining any Purpose (with a predicate)
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions());
+        // When/Then - cert found
+        assertThatNoException()
+                .isThrownBy(() -> validator.validate(TEST_TLS_CERT, jwkSetSecretStore).getOrThrowIfInterrupted());
     }
 
     @Test
-    void testValidCertNoUseCheck() throws CertificateException {
-        new DefaultTransportCertValidator().validate(TEST_TLS_CERT, TEST_JWKS);
+    void shouldFailToFindCertWhenKeyUseNotAsExpected() {
+        // Given - JwkSetSecretStore with predicate for "sig" purpose, requiring keyUse "sig"
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
+                .withPurposePredicate(purpose("sig", CertificateVerificationKey.class), keyUse("sig"));
+        // ... and - validator using purpose "sig" (so requires JWK keyUse to be "sig")
+        DefaultTransportCertValidator validator = new DefaultTransportCertValidator("sig");
+        // When/Then - cert matches, but its JWK keyUse is TLS, so validation fails
+        assertThatThrownBy(() -> validator.validate(TEST_TLS_CERT, jwkSetSecretStore).getOrThrowIfInterrupted())
+                .isInstanceOf(CertificateException.class)
+                .hasMessage("Failed to find JWK entry in provided JWKSet which matches the X509 cert");
     }
 
     @Test
-    void failsWhenCertMatchButUseDoesNot() {
-        final DefaultTransportCertValidator validator = new DefaultTransportCertValidator("blah");
-        failsWhenCertMatchButUseDoesNot(validator);
-    }
-
-    private static void failsWhenCertMatchButUseDoesNot(DefaultTransportCertValidator validator) {
-        final CertificateException certificateException = Assertions.assertThrows(CertificateException.class,
-                () -> validator.validate(TEST_TLS_CERT, TEST_JWKS));
-
-        Assertions.assertEquals("Failed to find JWK entry in provided JWKSet which matches the X509 cert", certificateException.getMessage());
-    }
-
-    @Test
-    void failsWhenCertNotInJwks() {
-        final X509Certificate certNotInJwks = generateX509Cert(generateRsaKeyPair(), "CN=test");
-        final CertificateException certificateException = Assertions.assertThrows(CertificateException.class,
-                () -> new DefaultTransportCertValidator(TLS_KEY_USE).validate(certNotInJwks, TEST_JWKS));
-        Assertions.assertEquals("Failed to find JWK entry in provided JWKSet which matches the X509 cert",
-                certificateException.getMessage());
+    void shouldFailWhenCertNotInJwks() {
+        // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
+                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
+        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        // When - non-existent (new) cert is tested,
+        X509Certificate certNotInJwks = generateX509Cert(generateRsaKeyPair(), "CN=test");
+        // Then - validation fails
+        assertThatThrownBy(() -> validator.validate(certNotInJwks, jwkSetSecretStore)
+                                           .getOrThrowIfInterrupted())
+                .isInstanceOf(CertificateException.class)
+                .hasMessage("Failed to find JWK entry in provided JWKSet which matches the X509 cert");
     }
 
     @Test
-    void failsWhenCertIsExpired() {
-        final X509Certificate expiredCert = generateExpiredX509Cert(generateRsaKeyPair(), "CN=abc");
-        final CertificateException certificateException = Assertions.assertThrows(CertificateException.class,
-                () -> new DefaultTransportCertValidator("blah").validate(expiredCert, TEST_JWKS));
-        assertThat(certificateException.getMessage()).contains("certificate expired on");
+    void shouldFailWhenCertIsExpired() {
+        // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
+                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
+        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        // When - expired cert is tested,
+        X509Certificate expiredCert = generateExpiredX509Cert(generateRsaKeyPair(), "CN=abc");
+        // Then - validation should fail
+        assertThatThrownBy(() -> validator.validate(expiredCert, jwkSetSecretStore)
+                                          .getOrThrowIfInterrupted())
+                .isInstanceOf(CertificateException.class)
+                .hasMessageContaining("certificate expired on");
     }
 
     @Test
-    void failsWhenBeforeCertStartDate() {
-        final Calendar calendar = Calendar.getInstance();
+    void shouldFailWhenBeforeCertStartDate() {
+        // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
+        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
+                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
+        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        // ... and cert with date prior to start date
+        Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_YEAR, 5);
-        final Date certStartDate = calendar.getTime();
+        Date certStartDate = calendar.getTime();
         calendar.add(Calendar.DAY_OF_YEAR, 50);
-        final Date certEndDate = calendar.getTime();
-
-        final X509Certificate certStartDateNotReached = generateX509Cert(generateRsaKeyPair(), "CN=abc", certStartDate, certEndDate);
-        final CertificateException certificateException = Assertions.assertThrows(CertificateException.class,
-                () -> new DefaultTransportCertValidator("blah").validate(certStartDateNotReached, TEST_JWKS));
-        assertThat(certificateException.getMessage()).contains("certificate not valid till");
+        Date certEndDate = calendar.getTime();
+        X509Certificate certStartDateNotReached = generateX509Cert(generateRsaKeyPair(),
+                                                                   "CN=abc",
+                                                                   certStartDate,
+                                                                   certEndDate);
+        // Then - validation should fail
+        assertThatThrownBy(() -> validator.validate(certStartDateNotReached, jwkSetSecretStore)
+                                          .getOrThrowIfInterrupted())
+                .isInstanceOf(CertificateException.class)
+                .hasMessageContaining("certificate not valid till");
     }
 
-    @Test
-    void testSuccessfullyCreatedByHeaplet() throws Exception {
-        final Name name = Name.of("test");
-        final HeapImpl heap = new HeapImpl(name);
-        final DefaultTransportCertValidator validatorNoUseCheck = (DefaultTransportCertValidator) new Heaplet().create(name, json(object()), heap);
-        validatorNoUseCheck.validate(TEST_TLS_CERT, TEST_JWKS);
+    private static Stream<JsonValue> validatorConfig() {
+        return Stream.of(
+                // Minimal config
+                json(object()),
+                // 'transportCertKeyUse' config
+                json(object(field(CONFIG_TRANSPORT_KEY_USE, "tls")))
+        );
+    }
 
-        final DefaultTransportCertValidator validatorTlsUseCheck = (DefaultTransportCertValidator) new Heaplet().create(name,
-                json(object(field("validKeyUse", TLS_KEY_USE))), heap);
-        validatorTlsUseCheck.validate(TEST_TLS_CERT, TEST_JWKS);
-
-        final DefaultTransportCertValidator validatorUnknownKeyUse= (DefaultTransportCertValidator) new Heaplet().create(name,
-                json(object(field("validKeyUse", "unknown"))), heap);
-        failsWhenCertMatchButUseDoesNot(validatorUnknownKeyUse);
+    @ParameterizedTest
+    @MethodSource("validatorConfig")
+    void shouldSuccessfullyCreateByHeaplet(final JsonValue validatorConfig) throws Exception {
+         Heaplet heaplet = new DefaultTransportCertValidator.Heaplet();
+         assertThat(heaplet.create(Name.of("validator"), validatorConfig, new HeapImpl(Name.of("heap"))))
+                 .isNotNull();
     }
 }
