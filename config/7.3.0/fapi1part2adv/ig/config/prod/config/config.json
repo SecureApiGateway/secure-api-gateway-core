@@ -1,7 +1,8 @@
 {
   "properties": {
     "security": {
-      "enableTestTrustedDirectory": {"$bool": "&{ig.test.directory.enabled|true}"}
+      "enableTestTrustedDirectory": {"$bool": "&{ig.test.directory.enabled|true}"},
+      "transportCertPurpose": "tls"
     },
     "oauth2": {
       "tokenEndpointAuthMethodsSupported": {
@@ -291,7 +292,7 @@
         "endpointHandler": "OBClientHandler",
         "cacheMaxSize": 500,
         "cacheTimeout": "24 hours",
-        "transportCertKeyUse": "tls"
+        "transportCertPurpose": "&{security.transportCertPurpose}"
       }
     },
     {
@@ -372,7 +373,7 @@
       "name": "TransportCertValidator",
       "type": "DefaultTransportCertValidator",
       "config": {
-        "transportCertKeyUse": "tls"
+        "transportCertPurpose": "tls"
       }
     },
     {
