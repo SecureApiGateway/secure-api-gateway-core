@@ -1,4 +1,5 @@
 import static org.forgerock.http.protocol.Response.newResponsePromise
+import static org.forgerock.json.JsonValue.json
 import static org.forgerock.secrets.Purpose.purpose
 import static org.forgerock.util.promise.Promises.newExceptionPromise
 import static org.forgerock.util.promise.Promises.newResultPromise
@@ -7,12 +8,6 @@ import java.security.cert.CertificateEncodingException
 import java.security.cert.CertificateExpiredException
 import java.security.cert.CertificateNotYetValidException
 import java.security.cert.X509Certificate
-import com.nimbusds.jose.jwk.RSAKey     //
-
-import static org.forgerock.http.protocol.Response.newResponsePromise
-import static org.forgerock.util.promise.Promises.newExceptionPromise
-import static org.forgerock.util.promise.Promises.newResultPromise
-import static org.forgerock.json.JsonValue.json;
 
 import org.forgerock.json.jose.exceptions.FailedToLoadJWKException
 import org.forgerock.json.jose.jwk.JWK
@@ -28,7 +23,6 @@ import org.forgerock.util.promise.NeverThrowsException
 
 import com.forgerock.securebanking.uk.gateway.jwks.*
 import com.nimbusds.jose.jwk.RSAKey
-
 import com.securebanking.gateway.dcr.ErrorResponseFactory
 
 /*
