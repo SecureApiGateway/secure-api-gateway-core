@@ -373,7 +373,7 @@
       "name": "TransportCertValidator",
       "type": "DefaultTransportCertValidator",
       "config": {
-        "transportCertPurpose": "tls"
+        "transportCertPurpose": "&{security.transportCertPurpose}"
       }
     },
     {
