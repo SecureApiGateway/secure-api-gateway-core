@@ -38,7 +38,6 @@ import org.forgerock.secrets.SecretConstraint;
 import org.forgerock.secrets.jwkset.JwkSetSecretStore;
 import org.forgerock.secrets.keys.CertificateVerificationKey;
 import org.forgerock.secrets.keys.CryptoKey;
-import org.forgerock.util.Reject;
 import org.forgerock.util.promise.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
