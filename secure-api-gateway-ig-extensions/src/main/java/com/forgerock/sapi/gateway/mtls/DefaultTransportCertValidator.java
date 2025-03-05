@@ -58,11 +58,6 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultTransportCertValidator.class);
 
-    /**
-     * Optionally validate that the JWK entry has a "use" value that matches this value.
-     *
-     * If this is configured as null, then checking of the "use" value will be skipped.
-     */
     private final Purpose<CertificateVerificationKey> transportCertPurpose;
 
     public DefaultTransportCertValidator(final Purpose<CertificateVerificationKey> transportCertPurpose) {
@@ -71,8 +66,8 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
 
     public Promise<Void, CertificateException> validate(X509Certificate clientCertificate,
                                                         JwkSetSecretStore jwkSetSecretStore) {
-        Reject.ifNull(clientCertificate, "certificate must be supplied");
-        Reject.ifNull(jwkSetSecretStore, "jwkSetSecretStore must be supplied");
+        requireNonNull(clientCertificate, "certificate must be supplied");
+        requireNonNull(jwkSetSecretStore, "jwkSetSecretStore must be supplied");
         try {
             clientCertificate.checkValidity();
         } catch (CertificateException certException) {
