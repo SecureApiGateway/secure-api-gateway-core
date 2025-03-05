@@ -15,12 +15,15 @@
  */
 package com.forgerock.sapi.gateway.mtls;
 
+import static org.forgerock.json.JsonValueFunctions.optionalOf;
 import static org.forgerock.openig.util.JsonValues.optional;
+import static org.forgerock.openig.util.JsonValues.purposeOf;
 import static org.forgerock.secrets.Purpose.VERIFY_CERTIFICATE;
 import static org.forgerock.secrets.Purpose.purpose;
 import static org.forgerock.util.promise.NeverThrowsException.neverThrown;
 import static org.forgerock.util.promise.Promises.newExceptionPromise;
 
+import java.security.MessageDigest;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -63,14 +66,10 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
      *
      * If this is configured as null, then checking of the "use" value will be skipped.
      */
-    private final String transportCertKeyUse;
+    private final Purpose<CertificateVerificationKey> transportCertPurpose;
 
-    public DefaultTransportCertValidator() {
-        this(VERIFY_CERTIFICATE.getLabel());
-    }
-
-    public DefaultTransportCertValidator(String transportCertKeyUse) {
-        this.transportCertKeyUse = transportCertKeyUse;
+    public DefaultTransportCertValidator(final Purpose<CertificateVerificationKey> transportCertPurpose) {
+        this.transportCertPurpose = transportCertPurpose;
     }
 
     public Promise<Void, CertificateException> validate(X509Certificate clientCertificate,
@@ -82,34 +81,38 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
         } catch (CertificateException certException) {
             return newExceptionPromise(certException);
         }
-        Purpose<CertificateVerificationKey> tlsPurpose =
-                purpose(transportCertKeyUse, CertificateVerificationKey.class)
-                        .withConstraints(matchesX509Cert(clientCertificate));
-        return jwkSetSecretStore.getValid(tlsPurpose)
+        Purpose<CertificateVerificationKey> certConstrainedPurpose =
+                transportCertPurpose.withConstraints(matchesX509Cert(clientCertificate));
+        return jwkSetSecretStore.getValid(certConstrainedPurpose)
                 .then(this::keysPresentInRegisteredCerts, neverThrown());
     }
 
-    private static SecretConstraint<CryptoKey> matchesX509Cert(final X509Certificate tlsClientCert) {
+    private static SecretConstraint<CryptoKey> matchesX509Cert(final X509Certificate transportCert) {
         // Note that this emulates the real way in which an X.509 cert will be validated via a JwkSetSecretStore
         return secret -> {
             try {
-                tlsClientCert.checkValidity();
+                transportCert.checkValidity();
             } catch (CertificateExpiredException | CertificateNotYetValidException certificateException) {
-                LOGGER.trace("Client certificate is not valid {}", certificateException.getMessage());
+                LOGGER.trace("Client certificate is not valid", certificateException);
                 return false;
             }
             return secret.getCertificate(X509Certificate.class)
-                         .filter(x509Cert -> {
-                             try {
-                                 boolean tf = Arrays.equals(x509Cert.getEncoded(), tlsClientCert.getEncoded());
-                                 return tf;
-                             } catch (CertificateEncodingException certificateException) {
-                                 LOGGER.trace("Certificate encoding error {}", certificateException.getMessage());
-                                 return false;
-                             }
-                         })
+                         .filter(x509Cert -> x509CertsEqual(x509Cert, transportCert))
                          .isPresent();
         };
+    }
+
+    private static boolean x509CertsEqual(final X509Certificate cert1, final X509Certificate cert2) {
+        if (cert1 == cert2)
+            return true;
+        if (cert1 == null || cert2 == null)
+            return false;
+        try {
+            return MessageDigest.isEqual(cert1.getEncoded(), cert2.getEncoded());
+        } catch (CertificateEncodingException certificateException) {
+            LOGGER.trace("Certificate encoding error", certificateException);
+            return false;
+        }
     }
 
     private Void keysPresentInRegisteredCerts(
@@ -120,7 +123,7 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
             throw new CertificateException("Failed to find JWK entry in provided JWKSet which matches the X509 cert");
         }
         LOGGER.debug("Found {} registered certificates matching request {} certificate", keysList.size(),
-                     transportCertKeyUse);
+                     transportCertPurpose.getLabel());
         return null;
     }
 
@@ -130,9 +133,9 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
      * {@code {
      *      "type": "DefaultTransportCertValidator",
      *      "config": {
-     *          "transportCertKeyUse" : expression<string>  [OPTIONAL - The expected key usage to use to retrieve and
+     *          "transportCertPurpose" : expression<string> [OPTIONAL - The expected purpose to use to retrieve and
      *                                                                  validate the transport cert (1). Defaults to
-     *                                                                  the generic "verifyCertificate" key usage (2).]
+     *                                                                  the generic "verifyCertificate" purpose (2).]
      *      }
      *   }
      * }
@@ -142,13 +145,13 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
      * Notes:
      * <ol>
      *     <li>
-     *         Config 'transportCertKeyUse' should align with the {@code CachingJwkSetService#transportCertKeyUse}
-     *         config to successfully identify the transport cert, as that config restricts which JWKs are available,
-     *         by key use, to prevent cross-JWK usage.
+     *         Config 'transportCertPurpose' should align with the {@code CachingJwkSetService#transportCertPurpose}
+     *         config to successfully identify the transport cert, as that config constrains the available JWKs, by
+     *         purpose, to ensure only JWKs with a matching {@code keyUse} are available, so preventing cross-JWK usage.
      *      </li>
      *      <li>
-     *         See {@link Purpose#VERIFY_CERTIFICATE} for default secret label if no key use is supplied, which is the
-     *         general purpose {@link Purpose} to obtain certificates. For the Open Banking use case, the
+     *         See {@link Purpose#VERIFY_CERTIFICATE} for default purpose label if no key use is supplied, which is the
+     *         general purpose {@link Purpose} to verify certificates. For the Open Banking use case, the
      *         {@code JWK.use} value is expected to be {@value org.forgerock.json.jose.jwk.KeyUseConstants#TLS} for a
      *         cert that is used for MTLS purposes. This is a custom key use defined by Open Banking.
      *     </li>
@@ -159,26 +162,26 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
      * <pre>
      * {
      *       "name": "OBTransportCertValidator",
-     *       "type": "TransportCertValidator",
+     *       "type": "DefaultTransportCertValidator",
      *       "config": {
-     *         "transportCertKeyUse": "tls"
+     *         "transportCertPurpose": "tls"
      *       }
      * }
      * </pre>
      */
     public static class Heaplet extends GenericHeaplet {
 
-        // This key 'use' should align with the CachingJwkSetService.transportCertKeyUse to match expected JWK use
-        static final String CONFIG_TRANSPORT_KEY_USE = "transportCertKeyUse";
+        // This key 'use' should align with the CachingJwkSetService.transportCertPurpose to match expected JWK use
+        static final String CONFIG_TRANSPORT_PURPOSE = "transportCertPurpose";
         static final String CONFIG_OLD_TRANSPORT_KEY_USE = "validKeyUse";
         static final String DEFAULT_TRANSPORT_KEY_USE = VERIFY_CERTIFICATE.getLabel();
 
         @Override
         public Object create() throws HeapException {
-            String transportCertKeyUse =
-                    config.get(CONFIG_TRANSPORT_KEY_USE)
-                          .as(optional())
-                          .map(JsonValue::asString)
+            Purpose<CertificateVerificationKey> transportCertPurpose =
+                    config.get(CONFIG_TRANSPORT_PURPOSE)
+                          .as(evaluatedWithHeapProperties())
+                          .as(optionalOf(purposeOf(CertificateVerificationKey.class)))
                           .orElseGet(() -> config.get("validKeyUse")
                                                  // Check for old 'validKeyUse' - and warn of config name change
                                                  .as(evaluatedWithHeapProperties())
@@ -186,13 +189,13 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
                                                      if (json.isNotNull()) {
                                                          LOGGER.warn("Config '{}' is deprecated, please use '{}'",
                                                                      CONFIG_OLD_TRANSPORT_KEY_USE,
-                                                                     CONFIG_TRANSPORT_KEY_USE);
+                                                                     CONFIG_TRANSPORT_PURPOSE);
                                                      }
                                                      return json;
                                                  })
                                                  .defaultTo(DEFAULT_TRANSPORT_KEY_USE)
-                                                 .asString());
-            return new DefaultTransportCertValidator(transportCertKeyUse);
+                                                 .as(purposeOf(CertificateVerificationKey.class)));
+            return new DefaultTransportCertValidator(transportCertPurpose);
         }
     }
 }

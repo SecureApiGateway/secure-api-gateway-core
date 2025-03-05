@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.secrets.Purpose.purpose;
 import static org.forgerock.util.promise.Promises.newExceptionPromise;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +49,9 @@ import org.forgerock.openig.fapi.apiclient.ApiClient;
 import org.forgerock.openig.heap.HeapImpl;
 import org.forgerock.openig.heap.Heaplet;
 import org.forgerock.openig.heap.Name;
+import org.forgerock.secrets.Purpose;
 import org.forgerock.secrets.jwkset.JwkSetSecretStore;
+import org.forgerock.secrets.keys.CertificateVerificationKey;
 import org.forgerock.services.context.AttributesContext;
 import org.forgerock.services.context.RootContext;
 import org.forgerock.util.Options;
@@ -74,8 +77,13 @@ import com.nimbusds.jose.JWSAlgorithm;
 @ExtendWith(MockitoExtension.class)
 public class ResponsePathTransportCertValidationFilterTest {
     private static final String API_CLIENT_ID = "client-id-1234";
-    // The transport key use that we use to define the purpose
-    private static final String TLS_KEY_USE = "tls";
+
+    // The transport cert JWK's keyUse, and related purpose
+    private static final String TRANSPORT_CERT_KEY_USE = "tls";
+    private static final String TRANSPORT_CERT_LABEL = "tls";
+    private static final Purpose<CertificateVerificationKey> TRANSPORT_CERT_PURPOSE =
+            purpose(TRANSPORT_CERT_LABEL, CertificateVerificationKey.class);
+
     // It's easier to use a real JwkSetSecretStore
     private static JwkSetSecretStore jwkSetSecretStore;
 
@@ -242,7 +250,8 @@ public class ResponsePathTransportCertValidationFilterTest {
 
         @BeforeAll
         public static void setUpSecrets() throws Exception {
-            Pair<X509Certificate, JWKSet> certAndJwks = CryptoUtils.generateTestTransportCertAndJwks(TLS_KEY_USE);
+            Pair<X509Certificate, JWKSet> certAndJwks =
+                    CryptoUtils.generateTestTransportCertAndJwks(TRANSPORT_CERT_KEY_USE);
             clientCert = certAndJwks.getFirst();
             JWKSet clientJwks = certAndJwks.getSecond();
             jwkSetSecretStore = new JwkSetSecretStore(clientJwks, Options.defaultOptions());
@@ -260,7 +269,7 @@ public class ResponsePathTransportCertValidationFilterTest {
             // ... and heap
             Heaplet heaplet = heapletClass.getDeclaredConstructor().newInstance();
             HeapImpl heap = new HeapImpl(Name.of("heap"));
-            heap.put("transportCertValidator", new DefaultTransportCertValidator());
+            heap.put("transportCertValidator", new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE));
             heap.put("headerCertificateRetriever", new HeaderCertificateRetriever(certHeader));
             // ... and ResponsePathTransportCertValidationFilter config
             JsonValue config = json(object(field("trustedDirectoryService", "trustedDirectoryService"),

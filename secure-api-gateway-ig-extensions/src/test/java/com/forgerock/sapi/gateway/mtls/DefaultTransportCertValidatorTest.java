@@ -15,7 +15,7 @@
  */
 package com.forgerock.sapi.gateway.mtls;
 
-import static com.forgerock.sapi.gateway.mtls.DefaultTransportCertValidator.Heaplet.CONFIG_TRANSPORT_KEY_USE;
+import static com.forgerock.sapi.gateway.mtls.DefaultTransportCertValidator.Heaplet.CONFIG_TRANSPORT_PURPOSE;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateExpiredX509Cert;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateRsaKeyPair;
 import static com.forgerock.sapi.gateway.util.CryptoUtils.generateX509Cert;
@@ -38,6 +38,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.json.jose.jwk.JWKSet;
 import org.forgerock.openig.heap.HeapImpl;
 import org.forgerock.openig.heap.Name;
+import org.forgerock.secrets.Purpose;
 import org.forgerock.secrets.jwkset.JwkSetSecretStore;
 import org.forgerock.secrets.keys.CertificateVerificationKey;
 import org.forgerock.util.Options;
@@ -52,64 +53,78 @@ import com.forgerock.sapi.gateway.util.CryptoUtils;
 
 class DefaultTransportCertValidatorTest {
 
-    // TEST_TLS_CERT actual X509 certificate
-    private static X509Certificate TEST_TLS_CERT;
-    // JWKSet containing TEST_TLS_CERT plus others.
-    private static JWKSet TEST_JWKS;
-    // The transport key use that we use to define the purpose
-    private static final String TLS_KEY_USE = "tls";
+    // Actual X509 certificate
+    private static X509Certificate transportCert;
+    // JWKSet containing transportCert plus others.
+    private static JWKSet testJwks;
+
+    // The transport cert JWK's keyUse, and related purpose
+    private static final String TRANSPORT_CERT_KEY_USE = "tls";
+    private static final String TRANSPORT_CERT_LABEL = "tls";
+    private static final Purpose<CertificateVerificationKey> TRANSPORT_CERT_PURPOSE =
+            purpose(TRANSPORT_CERT_LABEL, CertificateVerificationKey.class);
+
     // It's easier to use a real JwkSetSecretStore
     private static JwkSetSecretStore jwkSetSecretStore;
 
     @BeforeAll
     public static void beforeAll() throws Exception {
-        final Pair<X509Certificate, JWKSet> transportCertPemAndJwkSet =
-                CryptoUtils.generateTestTransportCertAndJwks(TLS_KEY_USE);
-        TEST_TLS_CERT = transportCertPemAndJwkSet.getFirst();
-        TEST_JWKS = transportCertPemAndJwkSet.getSecond();
+        Pair<X509Certificate, JWKSet> transportCertPemAndJwkSet =
+                CryptoUtils.generateTestTransportCertAndJwks(TRANSPORT_CERT_KEY_USE);
+        transportCert = transportCertPemAndJwkSet.getFirst();
+        testJwks = transportCertPemAndJwkSet.getSecond();
     }
 
     @Test
     void shouldFindValidCertWithTlsKeyUsePredicate() {
         // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
-                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
+        jwkSetSecretStore = new JwkSetSecretStore(testJwks, Options.defaultOptions())
+                .withPurposePredicate(TRANSPORT_CERT_PURPOSE, keyUse(TRANSPORT_CERT_KEY_USE));
         // ... and - validator using purpose TLS
-        DefaultTransportCertValidator transportCertValidator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        TransportCertValidator transportCertValidator = new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE);
         // When/Then - cert found
         assertThatNoException()
-                .isThrownBy(() -> transportCertValidator.validate(TEST_TLS_CERT, jwkSetSecretStore)
+                .isThrownBy(() -> transportCertValidator.validate(transportCert, jwkSetSecretStore)
                                                         .getOrThrowIfInterrupted());
     }
 
-    private static Stream<DefaultTransportCertValidator> defaultTransportCertValidator() {
+    private static Stream<DefaultTransportCertValidator> validatorWithVariousPurposeLabels() {
         return Stream.of(
-                // 'transportCertKeyUse' config - validator configured to use TLS as expected transport cert purpose
-                new DefaultTransportCertValidator(),
-                // No 'transportCertKeyUse' config - validator configured to allow any transport cert purpose
-                new DefaultTransportCertValidator(TLS_KEY_USE)
+                // Validator configured to use TLS transport purpose as expected transport cert purpose
+                new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE),
+                // Specified, but uninteresting, purpose
+                new DefaultTransportCertValidator(purpose("label", CertificateVerificationKey.class)),
+                // None-specific purpose defaults to "verify"
+                new DefaultTransportCertValidator(purpose(Purpose.VERIFY_CERTIFICATE.getLabel(),
+                                                          CertificateVerificationKey.class))
         );
     }
 
     @ParameterizedTest
-    @MethodSource("defaultTransportCertValidator")
+    @MethodSource("validatorWithVariousPurposeLabels")
     void shouldFindValidCertWhenNoPurposeKeyUsePredicate(final DefaultTransportCertValidator validator) {
         // Given - JwkSetSecretStore not constraining any Purpose (with a predicate)
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions());
+        jwkSetSecretStore = new JwkSetSecretStore(testJwks, Options.defaultOptions());
         // When/Then - cert found
         assertThatNoException()
-                .isThrownBy(() -> validator.validate(TEST_TLS_CERT, jwkSetSecretStore).getOrThrowIfInterrupted());
+                .isThrownBy(() -> validator.validate(transportCert, jwkSetSecretStore).getOrThrowIfInterrupted());
     }
 
     @Test
-    void shouldFailToFindCertWhenKeyUseNotAsExpected() {
-        // Given - JwkSetSecretStore with predicate for "sig" purpose, requiring keyUse "sig"
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
-                .withPurposePredicate(purpose("sig", CertificateVerificationKey.class), keyUse("sig"));
-        // ... and - validator using purpose "sig" (so requires JWK keyUse to be "sig")
-        DefaultTransportCertValidator validator = new DefaultTransportCertValidator("sig");
+    void shouldFailToFindCertWhenKeyUseNotAsExpected() throws Exception {
+        // Given - Alternative set of JWKs created with keyUse "misc"
+        String otherKeyUse = "misc";
+        Pair<X509Certificate, JWKSet> transportCertPemAndJwkSet =
+                CryptoUtils.generateTestTransportCertAndJwks(otherKeyUse);
+        X509Certificate validCertOtherKeyUse = transportCertPemAndJwkSet.getFirst();
+        JWKSet jwkSet = transportCertPemAndJwkSet.getSecond();
+        // ... and JwkSeSecretStore expects keyUse "tls" for purpose "tls"
+        jwkSetSecretStore = new JwkSetSecretStore(jwkSet, Options.defaultOptions())
+                .withPurposePredicate(TRANSPORT_CERT_PURPOSE, keyUse(TRANSPORT_CERT_KEY_USE));
+        // ... and - validator using purpose "tls" (so requires JWK keyUse to be "tls")
+        TransportCertValidator validator = new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE);
         // When/Then - cert matches, but its JWK keyUse is TLS, so validation fails
-        assertThatThrownBy(() -> validator.validate(TEST_TLS_CERT, jwkSetSecretStore).getOrThrowIfInterrupted())
+        assertThatThrownBy(() -> validator.validate(transportCert, jwkSetSecretStore).getOrThrowIfInterrupted())
                 .isInstanceOf(CertificateException.class)
                 .hasMessage("Failed to find JWK entry in provided JWKSet which matches the X509 cert");
     }
@@ -117,9 +132,9 @@ class DefaultTransportCertValidatorTest {
     @Test
     void shouldFailWhenCertNotInJwks() {
         // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
-                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
-        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        jwkSetSecretStore = new JwkSetSecretStore(testJwks, Options.defaultOptions())
+                .withPurposePredicate(TRANSPORT_CERT_PURPOSE, keyUse(TRANSPORT_CERT_KEY_USE));
+        TransportCertValidator validator = new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE);
         // When - non-existent (new) cert is tested,
         X509Certificate certNotInJwks = generateX509Cert(generateRsaKeyPair(), "CN=test");
         // Then - validation fails
@@ -132,9 +147,9 @@ class DefaultTransportCertValidatorTest {
     @Test
     void shouldFailWhenCertIsExpired() {
         // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
-                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
-        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        jwkSetSecretStore = new JwkSetSecretStore(testJwks, Options.defaultOptions())
+                .withPurposePredicate(TRANSPORT_CERT_PURPOSE, keyUse(TRANSPORT_CERT_KEY_USE));
+        TransportCertValidator validator = new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE);
         // When - expired cert is tested,
         X509Certificate expiredCert = generateExpiredX509Cert(generateRsaKeyPair(), "CN=abc");
         // Then - validation should fail
@@ -147,9 +162,9 @@ class DefaultTransportCertValidatorTest {
     @Test
     void shouldFailWhenBeforeCertStartDate() {
         // Given - JwkSetSecretStore with predicate for TLS purpose, requiring keyUse TLS
-        jwkSetSecretStore = new JwkSetSecretStore(TEST_JWKS, Options.defaultOptions())
-                .withPurposePredicate(purpose(TLS_KEY_USE, CertificateVerificationKey.class), keyUse(TLS_KEY_USE));
-        DefaultTransportCertValidator validator = new DefaultTransportCertValidator(TLS_KEY_USE);
+        jwkSetSecretStore = new JwkSetSecretStore(testJwks, Options.defaultOptions())
+                .withPurposePredicate(TRANSPORT_CERT_PURPOSE, keyUse(TRANSPORT_CERT_KEY_USE));
+        TransportCertValidator validator = new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE);
         // ... and cert with date prior to start date
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_YEAR, 5);
@@ -171,8 +186,8 @@ class DefaultTransportCertValidatorTest {
         return Stream.of(
                 // Minimal config
                 json(object()),
-                // 'transportCertKeyUse' config
-                json(object(field(CONFIG_TRANSPORT_KEY_USE, "tls")))
+                // 'transportCertPurpose' config
+                json(object(field(CONFIG_TRANSPORT_PURPOSE, TRANSPORT_CERT_KEY_USE)))
         );
     }
 
