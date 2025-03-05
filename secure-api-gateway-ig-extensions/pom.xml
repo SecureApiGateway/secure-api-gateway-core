@@ -60,7 +60,6 @@
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>secrets-api</artifactId>
-            <version>27.0.0-SNAPSHOT</version> <!-- TODO[OPENIG-8576]: Do not merge - remove -->
             <!--scope>provided</scope-->
         </dependency>
         <dependency>
