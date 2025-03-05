@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>secrets-api</artifactId>
-            <!--scope>provided</scope-->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.forgerock.openig</groupId>
