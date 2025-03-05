@@ -15,11 +15,10 @@
  */
 package com.forgerock.sapi.gateway.mtls;
 
+import static java.util.Objects.requireNonNull;
 import static org.forgerock.json.JsonValueFunctions.optionalOf;
-import static org.forgerock.openig.util.JsonValues.optional;
 import static org.forgerock.openig.util.JsonValues.purposeOf;
 import static org.forgerock.secrets.Purpose.VERIFY_CERTIFICATE;
-import static org.forgerock.secrets.Purpose.purpose;
 import static org.forgerock.util.promise.NeverThrowsException.neverThrown;
 import static org.forgerock.util.promise.Promises.newExceptionPromise;
 
@@ -29,11 +28,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.forgerock.json.JsonValue;
 import org.forgerock.openig.heap.GenericHeaplet;
 import org.forgerock.openig.heap.HeapException;
 import org.forgerock.secrets.Purpose;
@@ -69,7 +66,7 @@ public class DefaultTransportCertValidator implements TransportCertValidator {
     private final Purpose<CertificateVerificationKey> transportCertPurpose;
 
     public DefaultTransportCertValidator(final Purpose<CertificateVerificationKey> transportCertPurpose) {
-        this.transportCertPurpose = transportCertPurpose;
+        this.transportCertPurpose = requireNonNull(transportCertPurpose);
     }
 
     public Promise<Void, CertificateException> validate(X509Certificate clientCertificate,
