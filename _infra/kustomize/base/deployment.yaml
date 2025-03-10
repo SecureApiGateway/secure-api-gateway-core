@@ -40,9 +40,9 @@ spec:
                   fieldPath: status.podIP
           envFrom:
             - secretRef:
-                name: as-sapig-secrets
+                name: core-secrets
             - configMapRef:
-                name: as-sapig-deployment-config
+                name: core-deployment-config
           image: fapi-pep-as
           imagePullPolicy: Always
           livenessProbe:
@@ -79,7 +79,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: IG_TRUSTSTORE_PASSWORD
-                  name: as-sapig-secrets
+                  name: core-secrets
             - name: IG_PEM_TRUSTSTORE
               value: /var/run/secrets/truststore/ig-truststore.pem
           image: fapi-pep-as
