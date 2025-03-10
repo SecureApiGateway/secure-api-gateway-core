@@ -233,39 +233,8 @@
       "type": "TrustedDirectoryService",
       "config": {
         "trustedDirectories": [
-          "OpenBankingTestDirectory",
           "SecureAPIGatewayTestDirectory"
         ]
-      }
-    },
-    {
-      "name": "OpenBankingTestDirectory",
-      "type": "TrustedDirectory",
-      "config": {
-        "issuer": "OpenBanking Ltd",
-        "softwareStatementClaims": {
-          "organisationIdClaimName": "org_id",
-          "organisationNameClaimName": "org_name",
-          "softwareIdClaimName": "software_id",
-          "clientNameClaimName": "software_client_name",
-          "redirectUrisClaimName": "software_redirect_uris",
-          "rolesClaimName": "software_roles",
-          "jwksUriClaimName": "software_jwks_endpoint"
-        },
-        "secretsProvider": {
-          "type": "SecretsProvider",
-          "config": {
-            "stores": [
-              {
-                "type": "JwkSetSecretStore",
-                "config": {
-                  "jwkUrl": "https://keystore.openbankingtest.org.uk/keystore/openbanking.jwks",
-                  "handler": "OBClientHandler"
-                }
-              }
-            ]
-          }
-        }
       }
     },
     {
