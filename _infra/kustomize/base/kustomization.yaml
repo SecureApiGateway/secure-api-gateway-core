@@ -1,0 +1,16 @@
+generatorOptions:
+  disableNameSuffixHash: true
+images:
+  - name: fapi-pep-as
+    newName:  europe-west4-docker.pkg.dev/sbat-gcr-release/sapig-docker-artifact/securebanking/sapig-core
+    newTag: 4.0.4
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: pingid
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - ingress.yaml
+  - secret.yaml
+  - service.yaml
