@@ -93,7 +93,7 @@ public class RegistrationRequestBuilderFilter implements Filter {
         if (!VALIDATABLE_HTTP_REQUEST_METHODS.contains(request.getMethod())) {
             return next.handle(context, request);
         }
-        log.debug("Running RegistrationRequestEntityValidatorFilter");
+        log.debug("Running RegistrationRequestEntityValidatorFilter xxx");
 
         return this.registrationEntitySupplier.apply(context, request)
                                               .thenAsync(registrationRequestJwt -> {
