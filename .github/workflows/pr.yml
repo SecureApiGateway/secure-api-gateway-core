@@ -9,7 +9,8 @@ on:
 jobs:
   run_pr-template:
     name: PR - Build and Deploy
-    uses: SecureApiGateway/secure-api-gateway-ci/.github/workflows/reusable-pr.yml@main
+    # SH-ToDo - Revert
+    uses: SecureApiGateway/secure-api-gateway-ci/.github/workflows/reusable-pr.yml@OPENIG-8961-separate-ig-instance-deployments-for-authorisation-server-and-resource-server
     secrets: inherit
     with:
       componentName: secure-api-gateway-core
