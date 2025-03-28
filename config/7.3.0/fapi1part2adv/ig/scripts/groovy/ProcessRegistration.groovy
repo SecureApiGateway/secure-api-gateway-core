@@ -352,7 +352,7 @@ private static Promise<Response, NeverThrowsException> addSoftwareStatementToRes
 private Promise<Void, NoSuchSecretException> testTlsClientCertInJwksUri(X509Certificate tlsClientCert, URI jwksUri) {
     logger.debug(SCRIPT_NAME + "Checking cert against ssa software_jwks_endpoint: {}", jwksUri)
     // TODO: This should be refactored to use the DefaultTransportCertValidator
-    return jwkSetService.getJwkSetSecretStore(jwksUri)
+    return jwkSetService.getJwkSetSecretStore(jwksUri, null)
                         .thenAsync(jwkSetSecretStore -> {
                             Purpose<VerificationKey> tlsPurpose =
                                     purpose(tlsTransportCertSecretId, VerificationKey.class)

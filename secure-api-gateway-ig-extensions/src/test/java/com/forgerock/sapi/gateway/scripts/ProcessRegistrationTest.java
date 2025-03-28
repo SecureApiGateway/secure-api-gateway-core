@@ -220,7 +220,7 @@ class ProcessRegistrationTest extends AbstractScriptTest {
             when(softwareStatement.getOrganisationId()).thenReturn("someorg");
             when(softwareStatement.getOrganisationName()).thenReturn("Some Org");
             when(softwareStatement.getJwkSetLocator()).thenReturn(Choice.withValue1(JWKS_URI));
-            when(jwkSetService.getJwkSetSecretStore(any())).thenReturn(newResultPromise(jwkSetSecretStore));
+            when(jwkSetService.getJwkSetSecretStore(any(), any())).thenReturn(newResultPromise(jwkSetSecretStore));
             doAnswer(invocation -> null)
                     .when(registrationRequest).setMetadata("tls_client_certificate_bound_access_tokens", true);
             doAnswer(invocation -> null)
@@ -565,7 +565,7 @@ class ProcessRegistrationTest extends AbstractScriptTest {
             when(softwareStatement.getOrganisationId()).thenReturn("someorg");
             when(softwareStatement.getOrganisationName()).thenReturn("Some Org");
             when(softwareStatement.getJwkSetLocator()).thenReturn(Choice.withValue1(JWKS_URI));
-            when(jwkSetService.getJwkSetSecretStore(any())).thenReturn(newResultPromise(jwkSetSecretStore));
+            when(jwkSetService.getJwkSetSecretStore(any(), any())).thenReturn(newResultPromise(jwkSetSecretStore));
             doAnswer(invocation -> null)
                     .when(registrationRequest).setMetadata("tls_client_certificate_bound_access_tokens", true);
             doAnswer(invocation -> null)
