@@ -97,6 +97,14 @@
       "config" : {
         "filters": [
           {
+            "comment": "Initialize FAPI Context",
+            "name": "FapiContextInitializerFilter",
+            "type": "FapiContextInitializerFilter",
+            "config": {
+              "certificateHeaderName": "ssl-client-cert"
+            }
+          },
+          {
             "comment": "Add ApiClient data to the context attributes.apiClient",
             "name": "FetchApiClientFilter",
             "type": "FetchApiClientFilter",
@@ -109,7 +117,6 @@
             "name": "TransportCertValidationFilter",
             "type": "TransportCertValidationFilter",
             "config": {
-              "certificateRetriever": "HeaderCertificateRetriever",
               "transportCertValidator": "TransportCertValidator"
             }
           }
@@ -375,17 +382,6 @@
       "config": {
         "transportCertSecretId": "&{security.tlsTransportCertSecretId}"
       }
-    },
-    {
-      "name": "HeaderCertificateRetriever",
-      "type": "HeaderCertificateRetriever",
-      "config": {
-        "certificateHeaderName": "ssl-client-cert"
-      }
-    },
-    {
-      "name": "ContextCertificateRetriever",
-      "type": "ContextCertificateRetriever"
     },
     {
       "name": "IdmService",
