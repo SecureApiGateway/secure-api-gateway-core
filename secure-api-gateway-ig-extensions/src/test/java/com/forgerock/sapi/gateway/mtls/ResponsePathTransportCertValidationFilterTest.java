@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.openig.fapi.jwks.JwkSetService.transportPurpose;
 import static org.forgerock.secrets.Purpose.purpose;
 import static org.forgerock.util.promise.Promises.newExceptionPromise;
 import static org.forgerock.util.promise.Promises.newResultPromise;
@@ -83,8 +84,7 @@ public class ResponsePathTransportCertValidationFilterTest {
     // The transport cert JWK's keyUse, and related purpose
     private static final String TRANSPORT_CERT_KEY_USE = "tls";
     private static final String TRANSPORT_CERT_LABEL = "tls";
-    private static final Purpose<VerificationKey> TRANSPORT_CERT_PURPOSE =
-            purpose(TRANSPORT_CERT_LABEL, VerificationKey.class);
+    private static final Purpose<VerificationKey> TRANSPORT_CERT_PURPOSE = transportPurpose();
 
     // It's easier to use a real JwkSetSecretStore
     private static JwkSetSecretStore jwkSetSecretStore;
@@ -265,7 +265,7 @@ public class ResponsePathTransportCertValidationFilterTest {
             // ... and heap
             Heaplet heaplet = heapletClass.getDeclaredConstructor().newInstance();
             HeapImpl heap = new HeapImpl(Name.of("heap"));
-            heap.put("transportCertValidator", new DefaultTransportCertValidator(TRANSPORT_CERT_PURPOSE));
+            heap.put("transportCertValidator", new DefaultTransportCertValidator());
             // ... and ResponsePathTransportCertValidationFilter config
             JsonValue config = json(object(field("trustedDirectoryService", "trustedDirectoryService"),
                                            field("jwkSetService", "jwkSetService"),
