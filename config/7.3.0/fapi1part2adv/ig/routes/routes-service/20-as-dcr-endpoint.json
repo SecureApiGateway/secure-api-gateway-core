@@ -78,9 +78,9 @@
           "config": {
             "apiClientService": "IdmApiClientService",
             "apiClientOrgService": "IdmApiClientOrganisationService",
-            "clientIdRequestParameterLocator": {
-              "name": "QueryParamClientIdRequestParameterLocator",
-              "type": "QueryParamClientIdRequestParameterLocator"
+            "oAuth2ClientIdRetriever": {
+              "name": "queryParamOAuth2ClientIdRetriever",
+              "type": "QueryParamOAuth2ClientIdRetriever"
             }
           }
         },
