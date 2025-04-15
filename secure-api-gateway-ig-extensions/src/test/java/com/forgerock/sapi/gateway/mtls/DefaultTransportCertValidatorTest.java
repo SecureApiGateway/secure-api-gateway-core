@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.openig.fapi.jwks.JwkSetService.transportPurpose;
+import static org.forgerock.openig.fapi.jwks.JwkSetServicePurposes.transportPurpose;
 import static org.forgerock.secrets.jwkset.JwkSetSecretStore.JwkPredicates.keyUse;
 
 import java.security.cert.CertificateException;

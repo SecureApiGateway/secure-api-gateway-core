@@ -1,6 +1,6 @@
 import static org.forgerock.http.protocol.Response.newResponsePromise
 import static org.forgerock.json.JsonValue.json
-import static org.forgerock.openig.fapi.jwks.JwkSetService.transportPurpose
+import static org.forgerock.openig.fapi.jwks.JwkSetServicePurposes.transportPurpose
 import static org.forgerock.util.promise.Promises.newExceptionPromise
 import static org.forgerock.util.promise.Promises.newResultPromise
 
