@@ -16,7 +16,7 @@
 package com.forgerock.sapi.gateway.mtls;
 
 import static java.util.Objects.requireNonNull;
-import static org.forgerock.openig.fapi.jwks.JwkSetService.transportPurpose;
+import static org.forgerock.openig.fapi.jwks.JwkSetServicePurposes.transportPurpose;
 import static org.forgerock.util.promise.NeverThrowsException.neverThrown;
 import static org.forgerock.util.promise.Promises.newExceptionPromise;
 
