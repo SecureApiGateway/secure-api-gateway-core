@@ -10,6 +10,7 @@ configmap:
   cloudType: "CDK"
   gatewayDataRepoURI: "http://ig:80"
   identityPlatformFQDN: "iam.dev-cdk-core.forgerock.financial"
+  igOBASPSPSigningKid: "sU72Qz8tTtH9W6EoG-vhEYiQTJc"
   igTestDirectoryEnabled: "true"
   igTruststorePath: "/secrets/truststore/igtruststore"
   sapigType: "core"
