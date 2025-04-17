@@ -353,6 +353,20 @@
           }
         ]
       }
+    },
+    {
+      "name": "SecretsProvider-AmJWK",
+      "type": "SecretsProvider",
+      "config": {
+        "stores": [
+          {
+            "type": "JwkSetSecretStore",
+            "config": {
+              "jwkUrl": "https://&{identity.platform.fqdn}/am/oauth2/realms/root/realms/&{am.realm}/connect/jwk_uri"
+            }
+          }
+        ]
+      }
     }
   ],
   "monitor": true
